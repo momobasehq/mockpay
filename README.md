@@ -8,19 +8,19 @@ _Mock Payment Gateway Server_
 
 A local mock server for **MTN MoMo** and **Airtel Africa Money** APIs built with Go + GoFiber.  
 Transactions live entirely in memory. Random processing delays (300 ms to 3 s) and a 10 % failure
-rate are simulated out of the box while both are tuneable at runtime via the admin API.
+rate are simulated out of the box while both are tuneable at runtime via the admin API. 
 
----
+>![WARNING]
+>
+>:warning: _This project is meant for local development only when working with MTN and Airtel APIs locally._
 
 ## Quick start
 
 ```bash
-make tidy          # download deps (fetches directly from GitHub, no Go proxy needed)
+make tidy          # download deps
 make run           # start on :8080
 make smoke         # run a quick end-to-end smoke test while the server is up
 ```
-
----
 
 ## Simulation behaviour
 
@@ -38,35 +38,24 @@ POST /mtn/collection/v1_0/requesttopay?force=fail
 POST /airtel/standard/v1/disbursements/?force=success
 ```
 
----
-
 ## MTN MoMo API  `/mtn/...`
+
+<details>
+<summary>
 
 ### 1. Sandbox provisioning
 
-**Create API user**
-```
-POST /mtn/v1_0/apiuser
-Headers: X-Reference-Id: <uuid>
-Body:    { "providerCallbackHost": "localhost" }
-→ 201 (no body)
+<summary>
+
+There is no user management included however a default user is pre-seeded:
+```txt
+UserID:                 "mock-api-user",
+APIKey:                 "mock-api-key",
+OcpApimSubscriptionKey: "mock-oapi-subscription-key",
+ProviderCallbackHost:   "localhost",
 ```
 
-**Generate API key**
-```
-POST /mtn/v1_0/apiuser/:userId/apikey
-→ 201 { "apiKey": "..." }
-```
-
-**Inspect API user**
-```
-GET /mtn/v1_0/apiuser/:userId
-→ 200 { "providerCallbackHost": "...", "targetEnvironment": "sandbox" }
-```
-
-> A default user is pre-seeded: `mock-api-user` / `mock-api-key` — use these to skip provisioning.
-
----
+</details>
 
 ### 2. Authentication
 
@@ -85,8 +74,6 @@ POST /mtn/disbursement/token/
 Authorization: Basic <base64(userId:apiKey)>
 → { "access_token": "...", "token_type": "access_token", "expires_in": 3600 }
 ```
-
----
 
 ### 3. Collections
 
@@ -126,14 +113,6 @@ GET /mtn/collection/v1_0/account/balance
 → { "availableBalance": "...", "currency": "UGX" }
 ```
 
-**Validate account holder**
-```
-GET /mtn/collection/v1_0/accountholder/:idType/:id/active
-→ { "result": true|false }
-```
-
----
-
 ### 4. Disbursements
 
 **Initiate transfer**
@@ -166,8 +145,6 @@ GET /mtn/disbursement/v1_0/account/balance
 → { "availableBalance": "...", "currency": "UGX" }
 ```
 
----
-
 ### 5. MTN Webhook
 
 Fires to `X-Callback-Url` with the following payload:
@@ -187,8 +164,6 @@ Fires to `X-Callback-Url` with the following payload:
 }
 ```
 
----
-
 ## Airtel Africa Money API  `/airtel/...`
 
 ### 1. Authentication
@@ -202,8 +177,6 @@ Content-Type: application/json
 ```
 
 All other endpoints require `Authorization: Bearer <token>`.
-
----
 
 ### 2. Collections
 
@@ -237,8 +210,6 @@ GET /airtel/standard/v1/payments/:id
 
 Status codes: `DP` = pending, `TS` = successful, `TF` = failed.
 
----
-
 ### 3. Disbursements
 
 **Initiate disbursement**
@@ -262,8 +233,6 @@ GET /airtel/standard/v1/disbursements/:id
 → same shape as payment status
 ```
 
----
-
 ### 4. Refunds
 
 ```
@@ -273,8 +242,6 @@ Authorization: Bearer <token>
 { "transaction": { "airtel_money_id": "CIxxxxxxxxxx" } }
 → { "data": { "transaction": { "airtel_money_id": "...", "status": "TS", "message": "Refund Successful" } }, ... }
 ```
-
----
 
 ### 5. Airtel Webhook 
 
@@ -294,8 +261,6 @@ Fires to `X-Callback-Url` with the following payload:
 }
 ```
 
----
-
 ## Admin API  `/admin/...`
 
 | Method | Path | Description |
@@ -310,8 +275,6 @@ Fires to `X-Callback-Url` with the following payload:
 POST /admin/config
 { "failureRate": 0.5, "minDelayMs": 100, "maxDelayMs": 1000 }
 ```
-
----
 
 ## Example: MTN curl cheatsheet
 
