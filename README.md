@@ -1,10 +1,14 @@
+<div align=center>
+
 # MockPay
 
 _Mock Payment Gateway Server_
 
+</div>
+
 A local mock server for **MTN MoMo** and **Airtel Africa Money** APIs built with Go + GoFiber.  
-Transactions live entirely in memory. Random processing delays (300 ms – 3 s) and a 10 % failure
-rate are simulated out of the box — both tuneable at runtime via the admin API.
+Transactions live entirely in memory. Random processing delays (300 ms to 3 s) and a 10 % failure
+rate are simulated out of the box while both are tuneable at runtime via the admin API.
 
 ---
 
@@ -164,7 +168,9 @@ GET /mtn/disbursement/v1_0/account/balance
 
 ---
 
-### MTN Webhook payload (fires to `X-Callback-Url`)
+### 5. MTN Webhook
+
+Fires to `X-Callback-Url` with the following payload:
 
 ```json
 {
@@ -270,7 +276,9 @@ Authorization: Bearer <token>
 
 ---
 
-### Airtel Webhook payload (fires to `X-Callback-Url`)
+### 5. Airtel Webhook 
+
+Fires to `X-Callback-Url` with the following payload:
 
 ```json
 {
@@ -305,7 +313,7 @@ POST /admin/config
 
 ---
 
-## MTN curl cheatsheet
+## Example: MTN curl cheatsheet
 
 ```bash
 BASE=http://localhost:8080
@@ -331,3 +339,9 @@ sleep 3
 curl -s $BASE/mtn/collection/v1_0/requesttopay/$REF \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
+
+## License
+
+Released under [MIT License](./LICENSE.txt) - check file for details
+
+&copy; 2026-present MomobaseHQ
