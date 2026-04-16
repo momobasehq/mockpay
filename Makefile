@@ -9,6 +9,7 @@ run:
 	go run cmd/mockpay/main.go
 
 smoke:
+	chmod +x ./scripts/smoke-test.bash
 	bash ./scripts/smoke-test.bash
 
 ## Force 100 % failure rate (useful for testing error paths)

@@ -87,7 +87,7 @@ func (c *Config) ShouldFail(force string) bool {
 
 // FireWebhook asynchronously POSTs payload to callbackURL.
 // It is a no-op when callbackURL is empty.
-func FireWebhook(callbackURL string, payload interface{}) {
+func FireWebhook(callbackURL string, payload any) {
 	if callbackURL == "" {
 		return
 	}

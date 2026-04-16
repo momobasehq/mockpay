@@ -1,23 +1,11 @@
 #!/usr/bin/env bash
 
-make build
 ./build/mockpay &
 SERVER_PID=$!
 sleep 1
 
 echo "=== HEALTHCHECK ==="
 curl -s http://localhost:8080/admin/ready | python3 -m json.tool
-
-echo ""
-echo "=== MTN: provision API user ==="
-curl -s -X POST http://localhost:8080/mtn/v1_0/apiuser \
-  -H "X-Reference-Id: test-user-abc" \
-  -H "Content-Type: application/json" \
-  -d '{"providerCallbackHost":"localhost"}' -w " HTTP %{http_code}\n"
-
-echo ""
-echo "=== MTN: create API key ==="
-curl -s -X POST http://localhost:8080/mtn/v1_0/apiuser/test-user-abc/apikey | python3 -m json.tool
 
 echo ""
 echo "=== MTN: collection token (default creds) ==="
@@ -123,16 +111,15 @@ curl -s -X POST http://localhost:8080/admin/config \
   -d '{"failureRate":1.0,"minDelayMs":100,"maxDelayMs":500}' | python3 -m json.tool
 
 echo ""
+echo "=== ADMIN: change failure rate to 10% ==="
+curl -s -X POST http://localhost:8080/admin/config \
+  -H "Content-Type: application/json" \
+  -d '{"failureRate":0.1,"minDelayMs":100,"maxDelayMs":500}' | python3 -m json.tool
+
+echo ""
 echo "=== ADMIN: state dump (summary) ==="
-curl -s http://localhost:8080/admin/state | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-print('sim config:', d['sim'])
-print('MTN collections:', len(d['mtn']['collections']), 'tx')
-print('MTN disbursements:', len(d['mtn']['disbursements']), 'tx')
-print('Airtel payments:', len(d['airtel']['payments']), 'tx')
-print('Airtel disbursements:', len(d['airtel']['disbursements']), 'tx')
-"
+curl -s http://localhost:8080/admin/state | python3 -c "import sys,json; d=json.load(sys.stdin); print('sim config:', d['sim']); print('MTN collections:', len(d['mtn']['collections']), 'tx'); print('MTN disbursements:', len(d['mtn']['disbursements']), 'tx'); print('Airtel payments:', len(d['airtel']['payments']), 'tx'); print('Airtel disbursements:', len(d['airtel']['disbursements']), 'tx')"
+
 
 echo ""
 echo "=== ADMIN: reset ==="

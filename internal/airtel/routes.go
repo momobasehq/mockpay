@@ -19,6 +19,7 @@ package airtel
 
 import (
 	"fmt"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -113,10 +114,10 @@ func initiatePayment(s *store.AirtelStore) fiber.Handler {
 				MSISDN   string `json:"msisdn"`
 			} `json:"subscriber"`
 			Transaction struct {
-				Amount   interface{} `json:"amount"` // API accepts both number and string
-				Country  string      `json:"country"`
-				Currency string      `json:"currency"`
-				ID       string      `json:"id"`
+				Amount   float64 `json:"amount"`
+				Country  string  `json:"country"`
+				Currency string  `json:"currency"`
+				ID       string  `json:"id"`
 			} `json:"transaction"`
 		}
 		if err := c.Bind().Body(&body); err != nil {
@@ -124,7 +125,7 @@ func initiatePayment(s *store.AirtelStore) fiber.Handler {
 				airtelErr("ESB000002", "400", "Invalid request body"),
 			)
 		}
-		if body.Subscriber.MSISDN == "" || body.Transaction.Amount == nil {
+		if body.Subscriber.MSISDN == "" || body.Transaction.Amount <= 0 {
 			return c.Status(fiber.StatusBadRequest).JSON(
 				airtelErr("ESB000009", "400", "subscriber.msisdn and transaction.amount are required"),
 			)
@@ -132,7 +133,9 @@ func initiatePayment(s *store.AirtelStore) fiber.Handler {
 
 		txID := body.Transaction.ID
 		if txID == "" {
-			txID = uuid.NewString()
+			return c.Status(fiber.StatusBadRequest).JSON(
+				airtelErr("ESB000009", "400", "transaction.id is required"),
+			)
 		}
 		if _, exists := s.GetPayment(txID); exists {
 			return c.Status(fiber.StatusConflict).JSON(
@@ -175,8 +178,13 @@ func processPaymentAsync(s *store.AirtelStore, txID, callbackURL, force string) 
 	var airtelMoneyID, message string
 
 	if sim.Global.ShouldFail(force) {
-		status = store.StatusFailed
-		message = "Transaction failed. Insufficient funds or subscriber not reachable."
+		if rand.Int() > rand.Int() {
+			status = store.StatusCancelled
+			message = "Transaction cancelled. Subscriber withdrew the request."
+		} else {
+			status = store.StatusFailed
+			message = "Transaction failed. Insufficient funds or subscriber not reachable."
+		}
 	} else {
 		status = store.StatusSuccessful
 		airtelMoneyID = "CI" + strings.ToUpper(uuid.NewString()[:10])
@@ -225,9 +233,9 @@ func initiateDisbursement(s *store.AirtelStore) fiber.Handler {
 			Reference   string `json:"reference"`
 			PIN         string `json:"pin"`
 			Transaction struct {
-				Amount   interface{} `json:"amount"`
-				Currency string      `json:"currency"`
-				ID       string      `json:"id"`
+				Amount   float64 `json:"amount"`
+				Currency string  `json:"currency"`
+				ID       string  `json:"id"`
 			} `json:"transaction"`
 		}
 		if err := c.Bind().Body(&body); err != nil {
@@ -235,7 +243,7 @@ func initiateDisbursement(s *store.AirtelStore) fiber.Handler {
 				airtelErr("ESB000002", "400", "Invalid request body"),
 			)
 		}
-		if body.Payee.MSISDN == "" || body.Transaction.Amount == nil {
+		if body.Payee.MSISDN == "" || body.Transaction.Amount <= 0 {
 			return c.Status(fiber.StatusBadRequest).JSON(
 				airtelErr("ESB000009", "400", "payee.msisdn and transaction.amount are required"),
 			)
@@ -243,7 +251,9 @@ func initiateDisbursement(s *store.AirtelStore) fiber.Handler {
 
 		txID := body.Transaction.ID
 		if txID == "" {
-			txID = uuid.NewString()
+			return c.Status(fiber.StatusBadRequest).JSON(
+				airtelErr("ESB000009", "400", "transaction.id is required"),
+			)
 		}
 		if _, exists := s.GetDisbursement(txID); exists {
 			return c.Status(fiber.StatusConflict).JSON(
@@ -381,13 +391,15 @@ func airtelStatusCode(s store.TransactionStatus) string {
 		return airtelSuccess
 	case store.StatusFailed:
 		return airtelFailed
+	case store.StatusCancelled:
+		return airtelFailed
 	default:
 		return airtelPending
 	}
 }
 
 // airtelOK wraps data in the standard Airtel success envelope.
-func airtelOK(data interface{}) fiber.Map {
+func airtelOK(data any) fiber.Map {
 	return fiber.Map{
 		"data": data,
 		"status": fiber.Map{

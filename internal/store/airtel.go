@@ -1,6 +1,7 @@
 package store
 
 import (
+	"maps"
 	"sync"
 	"time"
 )
@@ -140,23 +141,20 @@ func (s *AirtelStore) Reset() {
 	s.Refunds = make(map[string]*AirtelTransaction)
 }
 
-func (s *AirtelStore) Dump() map[string]interface{} {
+func (s *AirtelStore) Dump() map[string]any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	pmts := make(map[string]*AirtelTransaction, len(s.Payments))
-	for k, v := range s.Payments {
-		pmts[k] = v
-	}
+	maps.Copy(pmts, s.Payments)
+
 	disbs := make(map[string]*AirtelTransaction, len(s.Disbursements))
-	for k, v := range s.Disbursements {
-		disbs[k] = v
-	}
+	maps.Copy(disbs, s.Disbursements)
+
 	refs := make(map[string]*AirtelTransaction, len(s.Refunds))
-	for k, v := range s.Refunds {
-		refs[k] = v
-	}
-	return map[string]interface{}{
+	maps.Copy(refs, s.Refunds)
+
+	return map[string]any{
 		"payments":      pmts,
 		"disbursements": disbs,
 		"refunds":       refs,

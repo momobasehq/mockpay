@@ -2,17 +2,11 @@
 //
 // Route layout (all under /mtn):
 //
-//	Sandbox provisioning
-//	  POST   /v1_0/apiuser                                   – create API user
-//	  POST   /v1_0/apiuser/:userId/apikey                    – generate API key
-//	  GET    /v1_0/apiuser/:userId                           – inspect API user
-//
 //	Collections
 //	  POST   /collection/token/                              – obtain access token
 //	  POST   /collection/v1_0/requesttopay                  – initiate collection
 //	  GET    /collection/v1_0/requesttopay/:referenceId      – query status
 //	  GET    /collection/v1_0/account/balance               – account balance
-//	  GET    /collection/v1_0/accountholder/:idType/:id/active – validate account
 //
 //	Disbursements
 //	  POST   /disbursement/token/                            – obtain access token
@@ -37,17 +31,11 @@ import (
 
 // RegisterRoutes attaches all MTN mock routes to r.
 func RegisterRoutes(r fiber.Router, s *store.MTNStore) {
-	// Sandbox provisioning
-	r.Post("/v1_0/apiuser", createAPIUser(s))
-	r.Post("/v1_0/apiuser/:userId/apikey", createAPIKey(s))
-	r.Get("/v1_0/apiuser/:userId", getAPIUser(s))
-
 	// Collections
 	r.Post("/collection/token/", collectionToken(s))
 	r.Post("/collection/v1_0/requesttopay", mtnAuth(s, "collection"), requestToPay(s))
 	r.Get("/collection/v1_0/requesttopay/:referenceId", mtnAuth(s, "collection"), getRequestToPay(s))
 	r.Get("/collection/v1_0/account/balance", mtnAuth(s, "collection"), collectionBalance)
-	r.Get("/collection/v1_0/accountholder/:idType/:id/active", mtnAuth(s, "collection"), validateAccount)
 
 	// Disbursements
 	r.Post("/disbursement/token/", disbursementToken(s))
@@ -76,65 +64,6 @@ func mtnAuth(s *store.MTNStore, scope string) fiber.Handler {
 			))
 		}
 		return c.Next()
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Sandbox provisioning
-// ---------------------------------------------------------------------------
-
-// POST /mtn/v1_0/apiuser
-func createAPIUser(s *store.MTNStore) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		refID := c.Get("X-Reference-Id")
-		if refID == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(mtnErr(
-				"INVALID_CALLBACK_URL_HOST", "X-Reference-Id header is required",
-			))
-		}
-		if _, exists := s.GetAPIUser(refID); exists {
-			return c.Status(fiber.StatusConflict).JSON(mtnErr(
-				"CONFLICT", "API user already exists",
-			))
-		}
-		var body struct {
-			ProviderCallbackHost string `json:"providerCallbackHost"`
-		}
-		_ = c.Bind().Body(&body)
-
-		s.CreateAPIUser(&store.MTNAPIUser{
-			UserID:               refID,
-			ProviderCallbackHost: body.ProviderCallbackHost,
-		})
-		return c.Status(fiber.StatusCreated).Send(nil)
-	}
-}
-
-// POST /mtn/v1_0/apiuser/:userId/apikey
-func createAPIKey(s *store.MTNStore) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		userID := c.Params("userId")
-		if _, exists := s.GetAPIUser(userID); !exists {
-			return c.Status(fiber.StatusNotFound).JSON(mtnErr("NOT_FOUND", "API user not found"))
-		}
-		key := uuid.NewString()
-		s.SetAPIKey(userID, key)
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"apiKey": key})
-	}
-}
-
-// GET /mtn/v1_0/apiuser/:userId
-func getAPIUser(s *store.MTNStore) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		userID := c.Params("userId")
-		u, exists := s.GetAPIUser(userID)
-		if !exists {
-			return c.Status(fiber.StatusNotFound).JSON(mtnErr("NOT_FOUND", "API user not found"))
-		}
-		return c.JSON(fiber.Map{
-			"providerCallbackHost": u.ProviderCallbackHost,
-			"targetEnvironment":    "sandbox",
-		})
 	}
 }
 
@@ -173,10 +102,14 @@ func issueToken(s *store.MTNStore, scope string) fiber.Handler {
 }
 
 // POST /mtn/collection/token/
-func collectionToken(s *store.MTNStore) fiber.Handler { return issueToken(s, "collection") }
+func collectionToken(s *store.MTNStore) fiber.Handler {
+	return issueToken(s, "collection")
+}
 
 // POST /mtn/disbursement/token/
-func disbursementToken(s *store.MTNStore) fiber.Handler { return issueToken(s, "disbursement") }
+func disbursementToken(s *store.MTNStore) fiber.Handler {
+	return issueToken(s, "disbursement")
+}
 
 // ---------------------------------------------------------------------------
 // Collections
@@ -186,9 +119,11 @@ func disbursementToken(s *store.MTNStore) fiber.Handler { return issueToken(s, "
 func requestToPay(s *store.MTNStore) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		refID := c.Get("X-Reference-Id")
+
 		if refID == "" {
-			refID = uuid.NewString()
+			return c.Status(fiber.StatusBadRequest).JSON(mtnErr("INVALID_REQUEST", "X-Reference-Id is required"))
 		}
+
 		callbackURL := c.Get("X-Callback-Url")
 		env := envHeader(c)
 
@@ -249,8 +184,19 @@ func processCollectionAsync(s *store.MTNStore, refID, callbackURL, force string)
 		reason  *store.MTNErrorReason
 	)
 	if sim.Global.ShouldFail(force) {
-		status = store.StatusFailed
-		reason = &store.MTNErrorReason{Code: "PAYER_NOT_FOUND", Message: "Payer account not found or inactive"}
+		if rand.Int() > rand.Int() {
+			status = store.StatusCancelled
+			reason = &store.MTNErrorReason{
+				Code:    "PAYER_DECLINED",
+				Message: "Payer account declined request",
+			}
+		} else {
+			status = store.StatusFailed
+			reason = &store.MTNErrorReason{
+				Code:    "PAYER_NOT_FOUND",
+				Message: "Payer account not found or inactive",
+			}
+		}
 	} else {
 		status = store.StatusSuccessful
 		finTxID = "FIN" + strings.ToUpper(uuid.NewString()[:8])
@@ -284,12 +230,6 @@ func collectionBalance(c fiber.Ctx) error {
 	})
 }
 
-// GET /mtn/collection/v1_0/accountholder/:idType/:id/active
-func validateAccount(c fiber.Ctx) error {
-	// 95 % of accounts are active in the mock.
-	return c.JSON(fiber.Map{"result": rand.Float64() > 0.05})
-}
-
 // ---------------------------------------------------------------------------
 // Disbursements
 // ---------------------------------------------------------------------------
@@ -299,7 +239,7 @@ func transfer(s *store.MTNStore) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		refID := c.Get("X-Reference-Id")
 		if refID == "" {
-			refID = uuid.NewString()
+			return c.Status(fiber.StatusBadRequest).JSON(mtnErr("INVALID_REQUEST", "X-Reference-Id is required"))
 		}
 		callbackURL := c.Get("X-Callback-Url")
 		env := envHeader(c)
@@ -401,7 +341,7 @@ func disbursementBalance(c fiber.Ctx) error {
 // ---------------------------------------------------------------------------
 
 func mtnErr(code, message string) fiber.Map {
-	return fiber.Map{"code": code, "message": message}
+	return fiber.Map{"code": code, "message": message, "error": message}
 }
 
 func envHeader(c fiber.Ctx) string {

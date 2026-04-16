@@ -1,15 +1,17 @@
 package store
 
 import (
+	"maps"
 	"sync"
 	"time"
 )
 
 // MTNAPIUser represents a provisioned sandbox API user.
 type MTNAPIUser struct {
-	UserID               string
-	APIKey               string
-	ProviderCallbackHost string
+	APIUser                string
+	APIKey                 string
+	OcpApimSubscriptionKey string
+	ProviderCallbackHost   string
 }
 
 // MTNTokenRecord holds an active access token and its scope.
@@ -63,9 +65,10 @@ func NewMTNStore() *MTNStore {
 	}
 	// Seed a ready-to-use default API user so callers don't have to provision one.
 	s.APIUsers["mock-api-user"] = &MTNAPIUser{
-		UserID:               "mock-api-user",
-		APIKey:               "mock-api-key",
-		ProviderCallbackHost: "localhost",
+		APIUser:                "mock-api-user",
+		APIKey:                 "mock-api-key",
+		OcpApimSubscriptionKey: "mock-oapi-subscription-key",
+		ProviderCallbackHost:   "localhost",
 	}
 	return s
 }
@@ -77,12 +80,6 @@ func (s *MTNStore) GetAPIUser(userID string) (*MTNAPIUser, bool) {
 	defer s.mu.RUnlock()
 	u, ok := s.APIUsers[userID]
 	return u, ok
-}
-
-func (s *MTNStore) CreateAPIUser(u *MTNAPIUser) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.APIUsers[u.UserID] = u
 }
 
 func (s *MTNStore) SetAPIKey(userID, key string) bool {
@@ -190,19 +187,17 @@ func (s *MTNStore) Reset() {
 	s.Disbursements = make(map[string]*MTNTransaction)
 }
 
-func (s *MTNStore) Dump() map[string]interface{} {
+func (s *MTNStore) Dump() map[string]any {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	cols := make(map[string]*MTNTransaction, len(s.Collections))
-	for k, v := range s.Collections {
-		cols[k] = v
-	}
+	maps.Copy(cols, s.Collections)
+
 	disbs := make(map[string]*MTNTransaction, len(s.Disbursements))
-	for k, v := range s.Disbursements {
-		disbs[k] = v
-	}
-	return map[string]interface{}{
+	maps.Copy(disbs, s.Disbursements)
+
+	return map[string]any{
 		"collections":   cols,
 		"disbursements": disbs,
 	}
