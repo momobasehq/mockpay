@@ -3,10 +3,10 @@ tidy:
 
 build:
 	mkdir -p build
-	go build -o build/mockpay ./cmd/mockpay
+	go build -o build/mockpay ./cmd/mockpay/main.go
 
 run:
-    go run cmd/mockpay/main.go
+	go run cmd/mockpay/main.go
 
 smoke:
 	bash ./scripts/smoke-test.bash
