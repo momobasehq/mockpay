@@ -1,6 +1,12 @@
+tidy:
+	go mod tidy
+
 build:
 	mkdir -p build
 	go build -o build/mockpay ./cmd/mockpay
+
+run:
+    go run cmd/mockpay/main.go
 
 smoke:
 	bash ./scripts/smoke-test.bash
