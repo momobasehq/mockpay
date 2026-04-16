@@ -19,16 +19,17 @@ Perfect for testing payment integrations locally without hitting production APIs
 
 MockPay replicates MTN MoMo and Airtel Africa Money payment gateway behavior with realistic characteristics:
 
-- [ ] **Async processing** – Configurable delays (300 ms – 3 s by default)
-- [ ] **Failure injection** – 10% default failure rate (tuneable)
-- [ ] **Webhook callbacks** – Delivers transaction completion events
-- [ ] **Force outcomes** – Deterministic testing via `?force=success` / `?force=fail`
-- [ ] **Admin API** – Runtime configuration without restarts
-- [ ] **In-memory** – All data cleared on restart (perfect for testing)
-- [ ] **Pre-seeded credentials** – Ready to test immediately
+- [x] **Async processing** – Configurable delays (300 ms – 3 s by default)
+- [x] **Failure injection** – 10% default failure rate (tuneable)
+- [x] **Webhook callbacks** – Delivers transaction completion events
+- [x] **Force outcomes** – Deterministic testing via `?force=success` / `?force=fail`
+- [x] **Admin API** – Runtime configuration without restarts
+- [x] **In-memory** – All data cleared on restart (perfect for testing)
+- [x] **Pre-seeded credentials** – Ready to test immediately
 
->![WARNING]
->:warning: **For local development only.** Do not use in production.
+>[!WARNING]
+>
+>**For local development only.** Do not use in production.
 
 
 ## Prerequisites
@@ -86,7 +87,6 @@ curl -s http://localhost:8080/mtn/collection/v1_0/requesttopay/$REF \
   -H "Authorization: Bearer $TOKEN" | jq '.status, .financialTransactionId'
 ```
 
----
 
 ## Pre-Seeded Credentials
 
@@ -102,7 +102,6 @@ OcpApimSubscriptionKey: mock-oapi-subscription-key
 Any client_id and client_secret are accepted in sandbox mode
 ```
 
----
 
 ## Supported Endpoints
 
@@ -250,14 +249,6 @@ make smoke
 - **Webhook delivery** – Best-effort, no retry logic
 - **Token expiry** – In-memory, not persistent across restarts
 - **Single instance** – No clustering support
-
-
-## Official Documentation
-
-For complete API specifications and real-world behavior:
-
-- **[MTN MoMo API Documentation](https://momodeveloper.mtn.com/API-collections)**
-- **[Airtel Africa Money API](https://api.airtel.africa/docs/)**
 
 
 ## Contributing
