@@ -121,7 +121,7 @@ Full endpoint reference: [**MTN MoMo API Documentation**](https://mtn-momo-api-d
 
 ### 📌 Airtel Africa Money
 
-Full endpoint reference: [**Airtel Africa Money API**](https://api.airtel.africa/docs/)
+Full endpoint reference: [**Airtel Africa Money API**](https://developers.airtel.africa/)
 
 **Implemented endpoints:**
 - `POST /auth/oauth2/token` – OAuth2 client credentials flow
