@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
@@ -33,6 +34,9 @@ func main() {
 		Format: "[${time}] ${status} ${latency} ${method} ${path}\n",
 	}))
 	app.Use(recover.New())
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: []string{"*"},
+	}))
 
 	mtnStore := store.NewMTNStore()
 	airtelStore := store.NewAirtelStore()
