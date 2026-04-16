@@ -259,4 +259,4 @@ Contributions welcome! Please submit pull requests or open issues on GitHub.
 
 Released under [MIT License](./LICENSE.txt).
 
-© 2026-present MomobaseHQ
+© 2026-present [MomobaseHQ](https://github.com/momobasehq)
