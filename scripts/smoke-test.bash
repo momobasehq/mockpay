@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-./build/mockpay &
-SERVER_PID=$!
-sleep 1
-
 echo "=== HEALTHCHECK ==="
 curl -s http://localhost:8080/admin/ready | python3 -m json.tool
 
@@ -125,6 +121,6 @@ echo ""
 echo "=== ADMIN: reset ==="
 curl -s -X DELETE http://localhost:8080/admin/reset | python3 -m json.tool
 
-kill $SERVER_PID 2>/dev/null
+
 echo ""
 echo "✅ All tests passed"

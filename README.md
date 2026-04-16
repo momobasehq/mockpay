@@ -2,309 +2,270 @@
 
 # MockPay
 
-_Mock Payment Gateway Server_
+**Mock Payment Gateway Server**
+
+[![Go](https://img.shields.io/badge/Go-1.26.2-blue.svg)](https://golang.org)
+[![Fiber](https://img.shields.io/badge/Framework-Fiber%20v3-00aed6.svg)](https://gofiber.io)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE.txt)
+
+A local mock server for **MTN MoMo** and **Airtel Africa Money** APIs built with Go + Fiber.
+
+Perfect for testing payment integrations locally without hitting production APIs.
 
 </div>
 
-A local mock server for **MTN MoMo** and **Airtel Africa Money** APIs built with Go + GoFiber.  
-Transactions live entirely in memory. Random processing delays (300 ms to 3 s) and a 10 % failure
-rate are simulated out of the box while both are tuneable at runtime via the admin API. 
+
+## Overview
+
+MockPay replicates MTN MoMo and Airtel Africa Money payment gateway behavior with realistic characteristics:
+
+- [ ] **Async processing** – Configurable delays (300 ms – 3 s by default)
+- [ ] **Failure injection** – 10% default failure rate (tuneable)
+- [ ] **Webhook callbacks** – Delivers transaction completion events
+- [ ] **Force outcomes** – Deterministic testing via `?force=success` / `?force=fail`
+- [ ] **Admin API** – Runtime configuration without restarts
+- [ ] **In-memory** – All data cleared on restart (perfect for testing)
+- [ ] **Pre-seeded credentials** – Ready to test immediately
 
 >![WARNING]
->
->:warning: _This project is meant for local development only when working with MTN and Airtel APIs locally._
+>:warning: **For local development only.** Do not use in production.
 
-## Quick start
 
-```bash
-make tidy          # download deps
-make run           # start on :8080
-make smoke         # run a quick end-to-end smoke test while the server is up
-```
+## Prerequisites
 
-## Simulation behaviour
+- **Go 1.26+**
+- **make** (optional)
+- **curl** and **jq** (optional, for testing)
 
-| Behaviour | Default | Change at runtime |
-|-----------|---------|-------------------|
-| Processing delay | 300 – 3000 ms random | `POST /admin/config` |
-| Failure rate | 10 % | `POST /admin/config` |
-| Force outcome per request | – | `?force=fail` or `?force=success` query param |
 
-### Force a specific outcome
-Append `?force=fail` or `?force=success` to any initiation endpoint:
-
-```
-POST /mtn/collection/v1_0/requesttopay?force=fail
-POST /airtel/standard/v1/disbursements/?force=success
-```
-
-## MTN MoMo API  `/mtn/...`
-
-<details>
-<summary>
-
-### 1. Sandbox provisioning
-
-<summary>
-
-There is no user management included however a default user is pre-seeded:
-```txt
-UserID:                 "mock-api-user",
-APIKey:                 "mock-api-key",
-OcpApimSubscriptionKey: "mock-oapi-subscription-key",
-ProviderCallbackHost:   "localhost",
-```
-
-</details>
-
-### 2. Authentication
-
-All token endpoints require **HTTP Basic auth**: `base64(userId:apiKey)`.
-
-**Collection token**
-```
-POST /mtn/collection/token/
-Authorization: Basic <base64(userId:apiKey)>
-→ { "access_token": "...", "token_type": "access_token", "expires_in": 3600 }
-```
-
-**Disbursement token**
-```
-POST /mtn/disbursement/token/
-Authorization: Basic <base64(userId:apiKey)>
-→ { "access_token": "...", "token_type": "access_token", "expires_in": 3600 }
-```
-
-### 3. Collections
-
-**Initiate payment request**
-```
-POST /mtn/collection/v1_0/requesttopay
-Authorization: Bearer <token>
-X-Reference-Id: <uuid>          (your idempotency key — generated if omitted)
-X-Callback-Url: <url>           (optional; webhook fired after processing)
-X-Target-Environment: sandbox
-
-{
-  "amount": "5000",
-  "currency": "UGX",
-  "externalId": "order-123",
-  "payer": { "partyIdType": "MSISDN", "partyId": "256770000000" },
-  "payerMessage": "Payment for order-123",
-  "payeeNote": "Thank you"
-}
-→ 202 (empty body — poll or await callback)
-```
-
-**Query status**
-```
-GET /mtn/collection/v1_0/requesttopay/:referenceId
-Authorization: Bearer <token>
-→ {
-    "amount": "5000", "currency": "UGX", "status": "PENDING|SUCCESSFUL|FAILED",
-    "financialTransactionId": "FINxxxxxxxx",   (present when SUCCESSFUL)
-    "reason": { "code": "...", "message": "..." }  (present when FAILED)
-  }
-```
-
-**Account balance**
-```
-GET /mtn/collection/v1_0/account/balance
-→ { "availableBalance": "...", "currency": "UGX" }
-```
-
-### 4. Disbursements
-
-**Initiate transfer**
-```
-POST /mtn/disbursement/v1_0/transfer
-Authorization: Bearer <token>
-X-Reference-Id: <uuid>
-X-Callback-Url: <url>
-
-{
-  "amount": "10000",
-  "currency": "UGX",
-  "externalId": "payout-456",
-  "payee": { "partyIdType": "MSISDN", "partyId": "256780000000" },
-  "payerMessage": "Salary payment",
-  "payeeNote": "August salary"
-}
-→ 202
-```
-
-**Query status**
-```
-GET /mtn/disbursement/v1_0/transfer/:referenceId
-→ same shape as collection status query (payee instead of payer)
-```
-
-**Account balance**
-```
-GET /mtn/disbursement/v1_0/account/balance
-→ { "availableBalance": "...", "currency": "UGX" }
-```
-
-### 5. MTN Webhook
-
-Fires to `X-Callback-Url` with the following payload:
-
-```json
-{
-  "referenceId": "...",
-  "financialTransactionId": "FINxxxxxxxx",
-  "externalId": "order-123",
-  "amount": "5000",
-  "currency": "UGX",
-  "payer": { "partyIdType": "MSISDN", "partyId": "256770000000" },
-  "payerMessage": "...",
-  "payeeNote": "...",
-  "status": "SUCCESSFUL",
-  "reason": null
-}
-```
-
-## Airtel Africa Money API  `/airtel/...`
-
-### 1. Authentication
-
-```
-POST /airtel/auth/oauth2/token
-Content-Type: application/json
-
-{ "client_id": "any", "client_secret": "any", "grant_type": "client_credentials" }
-→ { "access_token": "...", "expires_in": 3600, "token_type": "Bearer" }
-```
-
-All other endpoints require `Authorization: Bearer <token>`.
-
-### 2. Collections
-
-**Initiate payment**
-```
-POST /airtel/merchant/v2/payments/
-Authorization: Bearer <token>
-X-Country: UG
-X-Currency: UGX
-X-Callback-Url: <url>           (optional)
-
-{
-  "reference": "order-789",
-  "subscriber": { "country": "UG", "currency": "UGX", "msisdn": "256750000000" },
-  "transaction": { "amount": 7500, "country": "UG", "currency": "UGX", "id": "txn-unique-001" }
-}
-→ {
-    "data": { "transaction": { "id": "...", "status": "DP", "message": "Waiting for customer confirmation" } },
-    "status": { "code": "200", "message": "SUCCESS", "result_code": "ESB000010", "success": true }
-  }
-```
-
-**Query payment status**
-```
-GET /airtel/standard/v1/payments/:id
-→ {
-    "data": { "transaction": { "id": "...", "airtel_money_id": "CIxxxxxxxxxx", "status": "TS|TF|DP", "message": "..." } },
-    "status": { ... }
-  }
-```
-
-Status codes: `DP` = pending, `TS` = successful, `TF` = failed.
-
-### 3. Disbursements
-
-**Initiate disbursement**
-```
-POST /airtel/standard/v1/disbursements/
-Authorization: Bearer <token>
-X-Callback-Url: <url>
-
-{
-  "payee": { "msisdn": "256760000000" },
-  "reference": "payout-ref-001",
-  "pin": "encrypted-pin",
-  "transaction": { "amount": 25000, "currency": "UGX", "id": "disb-unique-001" }
-}
-→ { "data": { "transaction": { "id": "...", "status": "DP", "message": "Disbursement in progress" } }, ... }
-```
-
-**Query disbursement status**
-```
-GET /airtel/standard/v1/disbursements/:id
-→ same shape as payment status
-```
-
-### 4. Refunds
-
-```
-POST /airtel/standard/v1/payments/refund
-Authorization: Bearer <token>
-
-{ "transaction": { "airtel_money_id": "CIxxxxxxxxxx" } }
-→ { "data": { "transaction": { "airtel_money_id": "...", "status": "TS", "message": "Refund Successful" } }, ... }
-```
-
-### 5. Airtel Webhook 
-
-Fires to `X-Callback-Url` with the following payload:
-
-```json
-{
-  "transaction": {
-    "id": "txn-unique-001",
-    "airtel_money_id": "CIxxxxxxxxxx",
-    "msisdn": "256750000000",
-    "amount": "7500",
-    "currency": "UGX",
-    "status": "TS",
-    "message": "Transaction Successful"
-  }
-}
-```
-
-## Admin API  `/admin/...`
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/admin/state` | Dump all transactions + current sim config |
-| `POST` | `/admin/config` | Update sim config |
-| `DELETE` | `/admin/reset` | Wipe transactions and tokens |
-| `GET` | `/admin/ready` | Healthcheck |
-
-**Update sim config**
-```json
-POST /admin/config
-{ "failureRate": 0.5, "minDelayMs": 100, "maxDelayMs": 1000 }
-```
-
-## Example: MTN curl cheatsheet
+## Installation
 
 ```bash
-BASE=http://localhost:8080
+git clone https://github.com/momobasehq/mockpay.git
+cd mockpay
 
-# 1. Get token using the pre-seeded default user
-TOKEN=$(curl -s -X POST $BASE/mtn/collection/token/ \
+make tidy    # Download dependencies
+make build   # Build binary
+make run     # Start on http://localhost:8080
+```
+
+## Quick Start
+
+### Get a Token (MTN)
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/mtn/collection/token/ \
   -H "Authorization: Basic $(echo -n 'mock-api-user:mock-api-key' | base64)" \
   | jq -r .access_token)
+```
 
-# 2. Initiate a collection
+### Initiate Payment
+
+```bash
 REF=$(uuidgen)
-curl -s -X POST $BASE/mtn/collection/v1_0/requesttopay \
+curl -X POST http://localhost:8080/mtn/collection/v1_0/requesttopay \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Reference-Id: $REF" \
   -H "X-Target-Environment: sandbox" \
   -H "Content-Type: application/json" \
-  -d "{\"amount\":\"5000\",\"currency\":\"UGX\",\"externalId\":\"ord-1\",
-       \"payer\":{\"partyIdType\":\"MSISDN\",\"partyId\":\"256770000001\"},
-       \"payerMessage\":\"pay\",\"payeeNote\":\"thanks\"}"
-
-# 3. Poll for status (retry after 2–3 s)
-sleep 3
-curl -s $BASE/mtn/collection/v1_0/requesttopay/$REF \
-  -H "Authorization: Bearer $TOKEN" | jq .
+  -d '{
+    "amount": "5000",
+    "currency": "UGX",
+    "externalId": "order-123",
+    "payer": {"partyIdType": "MSISDN", "partyId": "256770000001"},
+    "payerMessage": "Payment for order",
+    "payeeNote": "Thank you"
+  }'
 ```
+
+### Check Status
+
+```bash
+sleep 2  # Wait for async processing
+curl -s http://localhost:8080/mtn/collection/v1_0/requesttopay/$REF \
+  -H "Authorization: Bearer $TOKEN" | jq '.status, .financialTransactionId'
+```
+
+---
+
+## Pre-Seeded Credentials
+
+**MTN MoMo:**
+```
+UserID:                 mock-api-user
+APIKey:                 mock-api-key
+OcpApimSubscriptionKey: mock-oapi-subscription-key
+```
+
+**Airtel Africa Money:**
+```
+Any client_id and client_secret are accepted in sandbox mode
+```
+
+---
+
+## Supported Endpoints
+
+### 📌 MTN MoMo
+
+Full endpoint reference: [**MTN MoMo API Documentation**](https://mtn-momo-api-documentation.readthedocs.io/en/latest/)
+
+**Implemented endpoints:**
+- `POST /collection/token/` – Get collection token (Bearer auth)
+- `POST /collection/v1_0/requesttopay` – Initiate payment
+- `GET /collection/v1_0/requesttopay/:referenceId` – Query payment status
+- `GET /collection/v1_0/account/balance` – Account balance
+- `POST /disbursement/token/` – Get disbursement token
+- `POST /disbursement/v1_0/transfer` – Initiate transfer
+- `GET /disbursement/v1_0/transfer/:referenceId` – Query transfer status
+- `GET /disbursement/v1_0/account/balance` – Disbursement balance
+
+### 📌 Airtel Africa Money
+
+Full endpoint reference: [**Airtel Africa Money API**](https://api.airtel.africa/docs/)
+
+**Implemented endpoints:**
+- `POST /auth/oauth2/token` – OAuth2 client credentials flow
+- `POST /merchant/v2/payments/` – Initiate payment
+- `GET /standard/v1/payments/:id` – Query payment status
+- `POST /standard/v1/disbursements/` – Initiate disbursement
+- `GET /standard/v1/disbursements/:id` – Query disbursement status
+- `POST /standard/v1/payments/refund` – Refund payment
+
+## Simulation Behavior
+
+### Configuration
+
+| Parameter | Default | Range |
+|-----------|---------|-------|
+| Failure Rate | 10% | 0–100% |
+| Min Delay | 300 ms | 0–3000 ms |
+| Max Delay | 3000 ms | 0–3000 ms |
+
+### Update at Runtime
+
+```bash
+curl -X POST http://localhost:8080/admin/config \
+  -H "Content-Type: application/json" \
+  -d '{
+    "failureRate": 0.5,
+    "minDelayMs": 100,
+    "maxDelayMs": 500
+  }'
+```
+
+### Force Outcomes
+
+Append `?force=success` or `?force=fail` to any transaction initiation endpoint:
+
+```bash
+# Force success
+POST /mtn/collection/v1_0/requesttopay?force=success
+
+# Force failure
+POST /airtel/merchant/v2/payments/?force=fail
+```
+
+## Admin API
+
+### Get Full State
+
+```bash
+curl http://localhost:8080/admin/state | jq .
+```
+
+Response includes simulation config and all transactions (MTN + Airtel).
+
+### Update Simulation Config
+
+```bash
+curl -X POST http://localhost:8080/admin/config \
+  -H "Content-Type: application/json" \
+  -d '{"failureRate": 0.25, "minDelayMs": 200, "maxDelayMs": 800}'
+```
+
+### Clear All Transactions
+
+```bash
+curl -X DELETE http://localhost:8080/admin/reset
+```
+
+Note: API users are preserved; only transactions and tokens are cleared.
+
+### Health Check
+
+```bash
+curl http://localhost:8080/admin/ready
+```
+
+
+## Examples
+
+### Airtel Payment with Webhook
+
+```bash
+BASE=http://localhost:8080
+APP_WEBHOOK=http://localhost:3000/webhook
+
+# 1. Get token
+TOKEN=$(curl -s -X POST $BASE/airtel/auth/oauth2/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"myapp","client_secret":"secret","grant_type":"client_credentials"}' \
+  | jq -r .access_token)
+
+# 2. Initiate payment with callback
+curl -X POST $BASE/airtel/merchant/v2/payments/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Callback-Url: $APP_WEBHOOK" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reference": "order-789",
+    "subscriber": {"country": "UG", "currency": "UGX", "msisdn": "256750000001"},
+    "transaction": {"amount": 7500, "country": "UG", "currency": "UGX", "id": "txn-001"}
+  }'
+```
+
+### Change Failure Rate to 100%
+
+```bash
+curl -X POST http://localhost:8080/admin/config \
+  -H "Content-Type: application/json" \
+  -d '{"failureRate": 1.0, "minDelayMs": 100, "maxDelayMs": 300}'
+```
+
+## Testing
+
+```bash
+# Terminal 1: Start server
+make run
+
+# Terminal 2: Run tests
+make smoke
+```
+
+## Limitations
+
+- **In-memory only** – All data lost on restart (by design)
+- **No persistence** – Transactions not stored to disk
+- **Webhook delivery** – Best-effort, no retry logic
+- **Token expiry** – In-memory, not persistent across restarts
+- **Single instance** – No clustering support
+
+
+## Official Documentation
+
+For complete API specifications and real-world behavior:
+
+- **[MTN MoMo API Documentation](https://momodeveloper.mtn.com/API-collections)**
+- **[Airtel Africa Money API](https://api.airtel.africa/docs/)**
+
+
+## Contributing
+
+Contributions welcome! Please submit pull requests or open issues on GitHub.
 
 ## License
 
-Released under [MIT License](./LICENSE.txt) - check file for details
+Released under [MIT License](./LICENSE.txt).
 
-&copy; 2026-present MomobaseHQ
+© 2026-present MomobaseHQ
