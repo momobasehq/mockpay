@@ -110,7 +110,7 @@ Any client_id and client_secret are accepted in sandbox mode
 
 Full endpoint reference: [**MTN MoMo API Documentation**](https://mtn-momo-api-documentation.readthedocs.io/en/latest/)
 
-**Implemented endpoints:**
+**Implemented endpoints:** `/mtn/*`
 - `POST /collection/token/` – Get collection token (Bearer auth)
 - `POST /collection/v1_0/requesttopay` – Initiate payment
 - `GET /collection/v1_0/requesttopay/:referenceId` – Query payment status
@@ -124,7 +124,7 @@ Full endpoint reference: [**MTN MoMo API Documentation**](https://mtn-momo-api-d
 
 Full endpoint reference: [**Airtel Africa Money API**](https://developers.airtel.africa/)
 
-**Implemented endpoints:**
+**Implemented endpoints:** `/airtel/*`
 - `POST /auth/oauth2/token` – OAuth2 client credentials flow
 - `POST /merchant/v2/payments/` – Initiate payment
 - `GET /standard/v1/payments/:id` – Query payment status
