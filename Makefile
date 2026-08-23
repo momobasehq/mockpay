@@ -12,8 +12,8 @@ smoke:
 	chmod +x ./scripts/smoke-test.bash
 	bash ./scripts/smoke-test.bash
 
-## Force 100 % failure rate (useful for testing error paths)
-force-fail:
+## Configure a 100 % failure rate (useful for testing error paths)
+fail-all:
 	curl -s -X POST http://localhost:8080/admin/config \
 	  -H "Content-Type: application/json" \
 	  -d '{"failureRate":1.0}'

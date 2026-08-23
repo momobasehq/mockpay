@@ -22,7 +22,8 @@ MockPay replicates MTN MoMo and Airtel Africa Money payment gateway behavior wit
 - [x] **Async processing** – Configurable delays (300 ms – 3 s by default)
 - [x] **Failure injection** – 10% default failure rate (tuneable)
 - [x] **Webhook callbacks** – Delivers transaction completion events
-- [x] **Force outcomes** – Deterministic testing via `?force=success` / `?force=fail`
+- [x] **Configuration UI** – Tune simulation behavior at `http://localhost:8080/`
+- [x] **Live activity** – Inspect in-memory transactions and pending webhooks
 - [x] **Admin API** – Runtime configuration without restarts
 - [x] **In-memory** – All data cleared on restart (perfect for testing)
 - [x] **Pre-seeded credentials** – Ready to test immediately
@@ -133,6 +134,8 @@ Full endpoint reference: [**Airtel Africa Money API**](https://developers.airtel
 
 ## Simulation Behavior
 
+Open [http://localhost:8080/](http://localhost:8080/) to configure the simulation. No login is required.
+
 ### Configuration
 
 | Parameter | Default | Range |
@@ -141,7 +144,9 @@ Full endpoint reference: [**Airtel Africa Money API**](https://developers.airtel
 | Min Delay | 300 ms | 0–3000 ms |
 | Max Delay | 3000 ms | 0–3000 ms |
 
-### Update at Runtime
+All new transactions use the configured failure rate and a random delay within the configured range. Per-request outcome overrides are intentionally not supported, matching real provider environments more closely.
+
+### Update through the API
 
 ```bash
 curl -X POST http://localhost:8080/admin/config \
@@ -151,18 +156,6 @@ curl -X POST http://localhost:8080/admin/config \
     "minDelayMs": 100,
     "maxDelayMs": 500
   }'
-```
-
-### Force Outcomes
-
-Append `?force=success` or `?force=fail` to any transaction initiation endpoint:
-
-```bash
-# Force success
-POST /mtn/collection/v1_0/requesttopay?force=success
-
-# Force failure
-POST /airtel/merchant/v2/payments/?force=fail
 ```
 
 ## Admin API
