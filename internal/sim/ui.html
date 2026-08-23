@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MockPay — Simulation</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #fafafa;
+      --surface: #ffffff;
+      --ink: #171717;
+      --muted: #737373;
+      --line: #e5e5e5;
+      --soft: #f5f5f5;
+      --accent: #2563eb;
+      --success: #15803d;
+      --danger: #b91c1c;
+      --control-border: #d4d4d4;
+      --button: #171717;
+      --button-hover: #303030;
+      --button-ink: #ffffff;
+      --success-soft: #f0fdf4;
+      --danger-soft: #fef2f2;
+      --accent-soft: #eff6ff;
+      --code: #525252;
+      --shadow: rgb(0 0 0 / 4%);
+    }
+
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #0a0a0a;
+      --surface: #171717;
+      --ink: #f5f5f5;
+      --muted: #a3a3a3;
+      --line: #303030;
+      --soft: #242424;
+      --accent: #60a5fa;
+      --success: #4ade80;
+      --danger: #f87171;
+      --control-border: #404040;
+      --button: #f5f5f5;
+      --button-hover: #d4d4d4;
+      --button-ink: #171717;
+      --success-soft: #15351f;
+      --danger-soft: #3b1c1c;
+      --accent-soft: #172b4d;
+      --code: #d4d4d4;
+      --shadow: rgb(0 0 0 / 30%);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme]) {
+        color-scheme: dark;
+        --page: #0a0a0a;
+        --surface: #171717;
+        --ink: #f5f5f5;
+        --muted: #a3a3a3;
+        --line: #303030;
+        --soft: #242424;
+        --accent: #60a5fa;
+        --success: #4ade80;
+        --danger: #f87171;
+        --control-border: #404040;
+        --button: #f5f5f5;
+        --button-hover: #d4d4d4;
+        --button-ink: #171717;
+        --success-soft: #15351f;
+        --danger-soft: #3b1c1c;
+        --accent-soft: #172b4d;
+        --code: #d4d4d4;
+        --shadow: rgb(0 0 0 / 30%);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(100% - 32px, 760px);
+      margin: 0 auto;
+      padding: 64px 0;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--button);
+      color: var(--button-ink);
+      font-weight: 750;
+      letter-spacing: -.04em;
+    }
+
+    h1, p { margin: 0; }
+    h1 { font-size: 18px; line-height: 1.2; letter-spacing: -.02em; }
+    .subtitle { margin-top: 3px; color: var(--muted); font-size: 13px; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #a3a3a3;
+    }
+
+    .status.online::before { background: #22c55e; }
+
+    .header-tools {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #theme {
+      height: 34px;
+      border: 1px solid var(--control-border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 28px 0 10px;
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #theme:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+    }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px var(--shadow);
+    }
+
+    .card + .card { margin-top: 18px; }
+
+    form { padding: 24px; }
+    .field + .field { margin-top: 24px; }
+
+    .label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 9px;
+    }
+
+    label { font-weight: 650; }
+    .hint { color: var(--muted); font-size: 12px; }
+
+    .rate-control {
+      display: grid;
+      grid-template-columns: 1fr 82px;
+      align-items: center;
+      gap: 14px;
+    }
+
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+    input[type="number"] {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--control-border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 11px;
+      font: inherit;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+    }
+
+    .number-suffix { position: relative; }
+    .number-suffix input { padding-right: 30px; }
+    .number-suffix span {
+      position: absolute;
+      top: 50%;
+      right: 11px;
+      color: var(--muted);
+      pointer-events: none;
+      transform: translateY(-50%);
+    }
+
+    .delay-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .delay-grid label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    #message { min-height: 20px; color: var(--muted); font-size: 13px; }
+    #message.success { color: var(--success); }
+    #message.error { color: var(--danger); }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      flex: none;
+      min-width: 124px;
+      height: 40px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--button);
+      color: var(--button-ink);
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--button-hover); }
+    button:disabled { cursor: wait; opacity: .55; }
+
+    button.secondary {
+      border: 1px solid var(--control-border);
+      background: var(--surface);
+      color: var(--danger);
+    }
+
+    button.secondary:hover { background: var(--danger-soft); }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 17px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-heading.subsection { border-top: 1px solid var(--line); }
+    h2 { margin: 0; font-size: 14px; letter-spacing: -.01em; }
+
+    .count {
+      min-width: 24px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--muted);
+      padding: 2px 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .activity-list { min-height: 68px; }
+
+    .activity-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 15px 20px;
+    }
+
+    .activity-row + .activity-row { border-top: 1px solid var(--line); }
+    .activity-copy { min-width: 0; }
+
+    .activity-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    .activity-title strong {
+      overflow: hidden;
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .meta { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    time { flex: none; color: var(--muted); font-size: 12px; }
+
+    .badge {
+      flex: none;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--code);
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .badge.successful { background: var(--success-soft); color: var(--success); }
+    .badge.failed, .badge.cancelled { background: var(--danger-soft); color: var(--danger); }
+    .badge.pending { background: var(--accent-soft); color: var(--accent); }
+
+    .empty {
+      padding: 23px 20px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    details { width: 100%; min-width: 0; }
+
+    summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    .webhook-url {
+      overflow: hidden;
+      color: var(--ink);
+      font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    pre {
+      overflow: auto;
+      max-height: 220px;
+      margin: 12px 0 0;
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 12px;
+      color: var(--code);
+      font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      background: var(--soft);
+      padding: 14px 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    code { color: var(--code); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    @media (max-width: 480px) {
+      main { padding: 32px 0; }
+      header { align-items: flex-start; }
+      .header-tools { align-items: flex-end; flex-direction: column-reverse; gap: 7px; }
+      form { padding: 20px; }
+      .delay-grid { grid-template-columns: 1fr; }
+      .actions { align-items: stretch; flex-direction: column; }
+      .action-buttons { flex-direction: column-reverse; }
+      button { width: 100%; }
+      .activity-row { align-items: flex-start; gap: 10px; padding: 14px 16px; }
+      .section-heading { padding: 15px 16px; }
+      .activity-title { align-items: flex-start; flex-direction: column; gap: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand">
+        <div class="mark" aria-hidden="true">M</div>
+        <div>
+          <h1>MockPay</h1>
+          <p class="subtitle">Simulation configuration</p>
+        </div>
+      </div>
+      <div class="header-tools">
+        <div id="status" class="status">Connecting</div>
+        <select id="theme" aria-label="Color theme">
+          <option value="system" selected>System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="card" aria-labelledby="settings-title">
+      <form id="config-form">
+        <div class="field">
+          <div class="label-row">
+            <label id="settings-title" for="failure-rate">Failure rate</label>
+            <span class="hint">Applied to every new transaction</span>
+          </div>
+          <div class="rate-control">
+            <input id="failure-rate" type="range" min="0" max="100" step="1" value="10">
+            <div class="number-suffix">
+              <input id="failure-percent" type="number" min="0" max="100" step="1" value="10" aria-label="Failure rate percentage">
+              <span>%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="label-row">
+            <label>Processing delay</label>
+            <span class="hint">Randomized within this range</span>
+          </div>
+          <div class="delay-grid">
+            <div>
+              <label for="min-delay">Minimum</label>
+              <div class="number-suffix">
+                <input id="min-delay" type="number" min="0" max="3000" step="50" value="300" required>
+                <span>ms</span>
+              </div>
+            </div>
+            <div>
+              <label for="max-delay">Maximum</label>
+              <div class="number-suffix">
+                <input id="max-delay" type="number" min="0" max="3000" step="50" value="3000" required>
+                <span>ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <p id="message" role="status" aria-live="polite"></p>
+          <div class="action-buttons">
+            <button id="reset" class="secondary" type="button">Reset state</button>
+            <button id="save" type="submit">Save changes</button>
+          </div>
+        </div>
+      </form>
+      <footer>Settings are held in memory and reset when the server restarts. <code>/admin/ready</code></footer>
+    </section>
+
+    <section class="card" aria-label="In-memory activity">
+      <div class="section-heading">
+        <h2>Transactions</h2>
+        <span id="transaction-count" class="count">0</span>
+      </div>
+      <div id="transactions" class="activity-list">
+        <p class="empty">No transactions in memory.</p>
+      </div>
+
+      <div class="section-heading subsection">
+        <h2>Pending webhooks</h2>
+        <span id="webhook-count" class="count">0</span>
+      </div>
+      <div id="webhooks" class="activity-list">
+        <p class="empty">No pending webhooks.</p>
+      </div>
+      <footer>Activity refreshes automatically every 2 seconds.</footer>
+    </section>
+  </main>
+
+  <script>
+    const form = document.querySelector('#config-form');
+    const rate = document.querySelector('#failure-rate');
+    const percent = document.querySelector('#failure-percent');
+    const minDelay = document.querySelector('#min-delay');
+    const maxDelay = document.querySelector('#max-delay');
+    const message = document.querySelector('#message');
+    const status = document.querySelector('#status');
+    const save = document.querySelector('#save');
+    const reset = document.querySelector('#reset');
+    const transactions = document.querySelector('#transactions');
+    const transactionCount = document.querySelector('#transaction-count');
+    const webhooks = document.querySelector('#webhooks');
+    const webhookCount = document.querySelector('#webhook-count');
+    const themeSelect = document.querySelector('#theme');
+
+    let loadingState = false;
+
+    function applyTheme(theme) {
+      if (theme === 'light' || theme === 'dark') {
+        document.documentElement.dataset.theme = theme;
+        localStorage.setItem('mockpay-theme', theme);
+      } else {
+        delete document.documentElement.dataset.theme;
+        localStorage.removeItem('mockpay-theme');
+      }
+    }
+
+    const savedTheme = localStorage.getItem('mockpay-theme');
+    themeSelect.value = savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'system';
+    applyTheme(themeSelect.value);
+    themeSelect.addEventListener('change', () => applyTheme(themeSelect.value));
+
+    function setMessage(text, kind = '') {
+      message.textContent = text;
+      message.className = kind;
+    }
+
+    function syncRate(source, target) {
+      const value = Math.max(0, Math.min(100, Number(source.value)));
+      target.value = Number.isFinite(value) ? value : 0;
+    }
+
+    rate.addEventListener('input', () => syncRate(rate, percent));
+    percent.addEventListener('input', () => syncRate(percent, rate));
+
+    function escapeHTML(value) {
+      return String(value ?? '').replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+      })[character]);
+    }
+
+    function formatTime(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? '—' : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function transactionItems(state) {
+      const groups = [
+        ['MTN', 'Collection', state.mtn?.collections],
+        ['MTN', 'Disbursement', state.mtn?.disbursements],
+        ['Airtel', 'Payment', state.airtel?.payments],
+        ['Airtel', 'Disbursement', state.airtel?.disbursements],
+        ['Airtel', 'Refund', state.airtel?.refunds]
+      ];
+
+      return groups.flatMap(([provider, type, items]) =>
+        Object.values(items || {}).map(item => ({ ...item, provider, type }))
+      ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    function renderTransactions(state) {
+      const items = transactionItems(state);
+      transactionCount.textContent = items.length;
+      if (!items.length) {
+        transactions.innerHTML = '<p class="empty">No transactions in memory.</p>';
+        return;
+      }
+
+      transactions.innerHTML = items.map(item => {
+        const id = item.referenceId || item.id || 'Unknown transaction';
+        const status = String(item.status || 'pending');
+        const statusClass = ['PENDING', 'SUCCESSFUL', 'FAILED', 'CANCELLED'].includes(status) ? status.toLowerCase() : '';
+        const amount = item.amount ? ` · ${escapeHTML(item.amount)} ${escapeHTML(item.currency || '')}` : '';
+        return `<div class="activity-row">
+          <div class="activity-copy">
+            <div class="activity-title">
+              <strong title="${escapeHTML(id)}">${escapeHTML(id)}</strong>
+              <span class="badge ${statusClass}">${escapeHTML(status)}</span>
+            </div>
+            <p class="meta">${escapeHTML(item.provider)} · ${escapeHTML(item.type)}${amount}</p>
+          </div>
+          <time datetime="${escapeHTML(item.createdAt)}">${escapeHTML(formatTime(item.createdAt))}</time>
+        </div>`;
+      }).join('');
+    }
+
+    function renderWebhooks(items = []) {
+      webhookCount.textContent = items.length;
+      if (!items.length) {
+        webhooks.innerHTML = '<p class="empty">No pending webhooks.</p>';
+        return;
+      }
+
+      webhooks.innerHTML = items.map(item => `<div class="activity-row">
+        <details>
+          <summary>
+            <span class="webhook-url" title="${escapeHTML(item.url)}">${escapeHTML(item.url)}</span>
+            <span class="badge pending">Pending</span>
+          </summary>
+          <p class="meta">Queued at ${escapeHTML(formatTime(item.createdAt))}</p>
+          <pre>${escapeHTML(JSON.stringify(item.payload, null, 2))}</pre>
+        </details>
+      </div>`).join('');
+    }
+
+    async function loadState(hydrateConfig = false) {
+      if (loadingState) return;
+      loadingState = true;
+      try {
+        const response = await fetch('/admin/state/');
+        if (!response.ok) throw new Error('Could not load server state');
+        const state = await response.json();
+        if (hydrateConfig) {
+          rate.value = percent.value = Math.round(state.sim.failureRate * 100);
+          minDelay.value = state.sim.minDelayMs;
+          maxDelay.value = state.sim.maxDelayMs;
+        }
+        renderTransactions(state);
+        renderWebhooks(state.pendingWebhooks);
+        status.textContent = 'Server online';
+        status.classList.add('online');
+      } catch (error) {
+        status.textContent = 'Unavailable';
+        status.classList.remove('online');
+        if (hydrateConfig) setMessage(error.message, 'error');
+      } finally {
+        loadingState = false;
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      setMessage('');
+
+      const min = Number(minDelay.value);
+      const max = Number(maxDelay.value);
+      if (min > max) {
+        setMessage('Minimum delay cannot exceed maximum.', 'error');
+        minDelay.focus();
+        return;
+      }
+
+      save.disabled = true;
+      save.textContent = 'Saving…';
+      try {
+        const response = await fetch('/admin/config/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            failureRate: Number(percent.value) / 100,
+            minDelayMs: min,
+            maxDelayMs: max
+          })
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Could not save configuration');
+        setMessage('Configuration saved.', 'success');
+      } catch (error) {
+        setMessage(error.message, 'error');
+      } finally {
+        save.disabled = false;
+        save.textContent = 'Save changes';
+      }
+    });
+
+    reset.addEventListener('click', async () => {
+      if (!window.confirm('Reset all transactions, tokens, and pending webhooks? This cannot be undone.')) return;
+
+      setMessage('');
+      reset.disabled = true;
+      reset.textContent = 'Resetting…';
+      try {
+        const response = await fetch('/admin/reset/', { method: 'DELETE' });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error || 'Could not reset state');
+        setMessage('State reset. Transactions, tokens, and pending webhooks cleared.', 'success');
+        await loadState(false);
+      } catch (error) {
+        setMessage(error.message, 'error');
+      } finally {
+        reset.disabled = false;
+        reset.textContent = 'Reset state';
+      }
+    });
+
+    loadState(true);
+    window.setInterval(() => loadState(false), 2000);
+  </script>
+</body>
+</html>

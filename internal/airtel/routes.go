@@ -158,8 +158,7 @@ func initiatePayment(s *store.AirtelStore) fiber.Handler {
 		}
 		s.SavePayment(tx)
 
-		force := c.Query("force")
-		go processPaymentAsync(s, txID, callbackURL, force)
+		go processPaymentAsync(s, txID, callbackURL)
 
 		return c.JSON(airtelOK(fiber.Map{
 			"transaction": fiber.Map{
@@ -171,13 +170,13 @@ func initiatePayment(s *store.AirtelStore) fiber.Handler {
 	}
 }
 
-func processPaymentAsync(s *store.AirtelStore, txID, callbackURL, force string) {
+func processPaymentAsync(s *store.AirtelStore, txID, callbackURL string) {
 	time.Sleep(sim.Global.Delay())
 
 	var status store.TransactionStatus
 	var airtelMoneyID, message string
 
-	if sim.Global.ShouldFail(force) {
+	if sim.Global.ShouldFail() {
 		if rand.Int() > rand.Int() {
 			status = store.StatusCancelled
 			message = "Transaction cancelled. Subscriber withdrew the request."
@@ -275,8 +274,7 @@ func initiateDisbursement(s *store.AirtelStore) fiber.Handler {
 		}
 		s.SaveDisbursement(tx)
 
-		force := c.Query("force")
-		go processDisbursementAsync(s, txID, callbackURL, force)
+		go processDisbursementAsync(s, txID, callbackURL)
 
 		return c.JSON(airtelOK(fiber.Map{
 			"transaction": fiber.Map{
@@ -288,13 +286,13 @@ func initiateDisbursement(s *store.AirtelStore) fiber.Handler {
 	}
 }
 
-func processDisbursementAsync(s *store.AirtelStore, txID, callbackURL, force string) {
+func processDisbursementAsync(s *store.AirtelStore, txID, callbackURL string) {
 	time.Sleep(sim.Global.Delay())
 
 	var status store.TransactionStatus
 	var airtelMoneyID, message string
 
-	if sim.Global.ShouldFail(force) {
+	if sim.Global.ShouldFail() {
 		status = store.StatusFailed
 		message = "Disbursement failed. Recipient not found or account inactive."
 	} else {

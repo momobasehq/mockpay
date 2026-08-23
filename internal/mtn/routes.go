@@ -168,14 +168,13 @@ func requestToPay(s *store.MTNStore) fiber.Handler {
 		}
 		s.SaveCollection(tx)
 
-		force := c.Query("force") // ?force=fail or ?force=success for deterministic testing
-		go processCollectionAsync(s, refID, callbackURL, force)
+		go processCollectionAsync(s, refID, callbackURL)
 
 		return c.Status(fiber.StatusAccepted).Send(nil) // 202 – MTN spec
 	}
 }
 
-func processCollectionAsync(s *store.MTNStore, refID, callbackURL, force string) {
+func processCollectionAsync(s *store.MTNStore, refID, callbackURL string) {
 	time.Sleep(sim.Global.Delay())
 
 	var (
@@ -183,7 +182,7 @@ func processCollectionAsync(s *store.MTNStore, refID, callbackURL, force string)
 		finTxID string
 		reason  *store.MTNErrorReason
 	)
-	if sim.Global.ShouldFail(force) {
+	if sim.Global.ShouldFail() {
 		if rand.Int() > rand.Int() {
 			status = store.StatusCancelled
 			reason = &store.MTNErrorReason{
@@ -285,14 +284,13 @@ func transfer(s *store.MTNStore) fiber.Handler {
 		}
 		s.SaveDisbursement(tx)
 
-		force := c.Query("force")
-		go processDisbursementAsync(s, refID, callbackURL, force)
+		go processDisbursementAsync(s, refID, callbackURL)
 
 		return c.Status(fiber.StatusAccepted).Send(nil)
 	}
 }
 
-func processDisbursementAsync(s *store.MTNStore, refID, callbackURL, force string) {
+func processDisbursementAsync(s *store.MTNStore, refID, callbackURL string) {
 	time.Sleep(sim.Global.Delay())
 
 	var (
@@ -300,7 +298,7 @@ func processDisbursementAsync(s *store.MTNStore, refID, callbackURL, force strin
 		finTxID string
 		reason  *store.MTNErrorReason
 	)
-	if sim.Global.ShouldFail(force) {
+	if sim.Global.ShouldFail() {
 		status = store.StatusFailed
 		reason = &store.MTNErrorReason{Code: "NOT_ENOUGH_FUNDS", Message: "Insufficient funds in disbursement account"}
 	} else {

@@ -4,12 +4,16 @@ package sim
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log"
 	"math/rand"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Config controls simulation behaviour at runtime.
@@ -71,18 +75,61 @@ func (c *Config) Delay() time.Duration {
 }
 
 // ShouldFail returns true with probability FailureRate.
-// Pass force = "fail" or "success" to override the random outcome.
-func (c *Config) ShouldFail(force string) bool {
-	switch force {
-	case "fail":
-		return true
-	case "success":
-		return false
-	}
+func (c *Config) ShouldFail() bool {
 	c.mu.RLock()
 	rate := c.FailureRate
 	c.mu.RUnlock()
 	return rand.Float64() < rate
+}
+
+// PendingWebhook describes a webhook delivery that is currently in flight.
+type PendingWebhook struct {
+	ID        string          `json:"id"`
+	URL       string          `json:"url"`
+	Payload   json.RawMessage `json:"payload"`
+	CreatedAt time.Time       `json:"createdAt"`
+}
+
+type pendingWebhookEntry struct {
+	webhook PendingWebhook
+	cancel  context.CancelFunc
+}
+
+var webhookQueue = struct {
+	sync.RWMutex
+	items map[string]pendingWebhookEntry
+}{items: make(map[string]pendingWebhookEntry)}
+
+// PendingWebhooks returns a snapshot of webhook deliveries currently in flight.
+func PendingWebhooks() []PendingWebhook {
+	webhookQueue.RLock()
+	items := make([]PendingWebhook, 0, len(webhookQueue.items))
+	for _, entry := range webhookQueue.items {
+		item := entry.webhook
+		item.Payload = append(json.RawMessage(nil), item.Payload...)
+		items = append(items, item)
+	}
+	webhookQueue.RUnlock()
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
+	return items
+}
+
+// ResetPendingWebhooks cancels and removes all webhook deliveries in flight.
+func ResetPendingWebhooks() {
+	webhookQueue.Lock()
+	cancels := make([]context.CancelFunc, 0, len(webhookQueue.items))
+	for _, entry := range webhookQueue.items {
+		cancels = append(cancels, entry.cancel)
+	}
+	webhookQueue.items = make(map[string]pendingWebhookEntry)
+	webhookQueue.Unlock()
+
+	for _, cancel := range cancels {
+		cancel()
+	}
 }
 
 // FireWebhook asynchronously POSTs payload to callbackURL.
@@ -91,14 +138,42 @@ func FireWebhook(callbackURL string, payload any) {
 	if callbackURL == "" {
 		return
 	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("[webhook] marshal error for %s: %v", callbackURL, err)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	id := uuid.NewString()
+	webhookQueue.Lock()
+	webhookQueue.items[id] = pendingWebhookEntry{
+		webhook: PendingWebhook{
+			ID:        id,
+			URL:       callbackURL,
+			Payload:   append(json.RawMessage(nil), data...),
+			CreatedAt: time.Now(),
+		},
+		cancel: cancel,
+	}
+	webhookQueue.Unlock()
+
 	go func() {
-		data, err := json.Marshal(payload)
+		defer func() {
+			cancel()
+			webhookQueue.Lock()
+			delete(webhookQueue.items, id)
+			webhookQueue.Unlock()
+		}()
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, callbackURL, bytes.NewReader(data))
 		if err != nil {
-			log.Printf("[webhook] marshal error for %s: %v", callbackURL, err)
+			log.Printf("[webhook] create request for %s error: %v", callbackURL, err)
 			return
 		}
+		req.Header.Set("Content-Type", "application/json")
 		client := &http.Client{Timeout: 10 * time.Second}
-		resp, err := client.Post(callbackURL, "application/json", bytes.NewReader(data))
+		resp, err := client.Do(req)
 		if err != nil {
 			log.Printf("[webhook] POST %s error: %v", callbackURL, err)
 			return

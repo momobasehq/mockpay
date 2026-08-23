@@ -45,6 +45,9 @@ func main() {
 	mtn.RegisterRoutes(app.Group("/mtn"), mtnStore)
 	airtel.RegisterRoutes(app.Group("/airtel"), airtelStore)
 
+	// Simulation configuration UI (no authentication; local development only).
+	sim.RegisterUI(app)
+
 	// -----------------------------------------------------------------------
 	// Admin routes — for local dev tooling only, not part of provider APIs
 	// -----------------------------------------------------------------------
@@ -58,7 +61,7 @@ func main() {
 	log.Printf("🚀  Mock payment server listening on :%s", port)
 	log.Printf("    MTN routes  → http://localhost:%s/mtn/...", port)
 	log.Printf("    Airtel routes → http://localhost:%s/airtel/...", port)
-	log.Printf("    Admin panel → http://localhost:%s/admin/state", port)
+	log.Printf("    Simulation UI → http://localhost:%s/", port)
 	log.Printf("    Default MTN creds: mock-api-user / mock-api-key")
 	log.Printf("    Default MTN OAPI key: mock-oapi-subscription-key (Ocp-Apim-Subscription-Key header)")
 	log.Printf("    Airtel: any client_id / client_secret accepted")

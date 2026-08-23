@@ -23,8 +23,9 @@ func getState(mtnStore *store.MTNStore, airtelStore *store.AirtelStore) fiber.Ha
 				"minDelayMs":  minMs,
 				"maxDelayMs":  maxMs,
 			},
-			"mtn":    mtnStore.Dump(),
-			"airtel": airtelStore.Dump(),
+			"mtn":             mtnStore.Dump(),
+			"airtel":          airtelStore.Dump(),
+			"pendingWebhooks": PendingWebhooks(),
 		})
 	}
 }
@@ -66,7 +67,8 @@ func resetState(mtn *store.MTNStore, airtel *store.AirtelStore) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		mtn.Reset()
 		airtel.Reset()
-		return c.JSON(fiber.Map{"message": "All transactions and tokens cleared"})
+		ResetPendingWebhooks()
+		return c.JSON(fiber.Map{"message": "All transactions, tokens, and pending webhooks cleared"})
 	}
 }
 
