@@ -11,5 +11,5 @@ FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /mockpay /mockpay
 USER 65532:65532
-EXPOSE 8080
+EXPOSE 7676
 ENTRYPOINT ["/mockpay"]

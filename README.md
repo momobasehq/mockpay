@@ -22,7 +22,7 @@ MockPay replicates MTN MoMo and Airtel Africa Money payment gateway behavior wit
 - [x] **Async processing** – Configurable delays (300 ms – 3 s by default)
 - [x] **Failure injection** – 10% default failure rate (tuneable)
 - [x] **Webhook callbacks** – Delivers transaction completion events
-- [x] **Configuration UI** – Tune simulation behavior at `http://localhost:8080/`
+- [x] **Configuration UI** – Tune simulation behavior at `http://localhost:7676/`
 - [x] **Live activity** – Inspect in-memory transactions and pending webhooks
 - [x] **Admin API** – Runtime configuration without restarts
 - [x] **In-memory** – All data cleared on restart (perfect for testing)
@@ -48,7 +48,7 @@ cd mockpay
 
 make tidy    # Download dependencies
 make build   # Build binary
-make run     # Start on http://localhost:8080
+make run     # Start on http://localhost:7676
 ```
 
 ## Quick Start
@@ -56,7 +56,7 @@ make run     # Start on http://localhost:8080
 ### Get a Token (MTN)
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/mtn/collection/token/ \
+TOKEN=$(curl -s -X POST http://localhost:7676/mtn/collection/token/ \
   -H "Authorization: Basic $(echo -n 'mock-api-user:mock-api-key' | base64)" \
   | jq -r .access_token)
 ```
@@ -65,7 +65,7 @@ TOKEN=$(curl -s -X POST http://localhost:8080/mtn/collection/token/ \
 
 ```bash
 REF=$(uuidgen)
-curl -X POST http://localhost:8080/mtn/collection/v1_0/requesttopay \
+curl -X POST http://localhost:7676/mtn/collection/v1_0/requesttopay \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Reference-Id: $REF" \
   -H "X-Target-Environment: sandbox" \
@@ -84,7 +84,7 @@ curl -X POST http://localhost:8080/mtn/collection/v1_0/requesttopay \
 
 ```bash
 sleep 2  # Wait for async processing
-curl -s http://localhost:8080/mtn/collection/v1_0/requesttopay/$REF \
+curl -s http://localhost:7676/mtn/collection/v1_0/requesttopay/$REF \
   -H "Authorization: Bearer $TOKEN" | jq '.status, .financialTransactionId'
 ```
 
@@ -134,7 +134,7 @@ Full endpoint reference: [**Airtel Africa Money API**](https://developers.airtel
 
 ## Simulation Behavior
 
-Open [http://localhost:8080/](http://localhost:8080/) to configure the simulation. No login is required.
+Open [http://localhost:7676/](http://localhost:7676/) to configure the simulation. No login is required.
 
 ### Configuration
 
@@ -149,7 +149,7 @@ All new transactions use the configured failure rate and a random delay within t
 ### Update through the API
 
 ```bash
-curl -X POST http://localhost:8080/admin/config \
+curl -X POST http://localhost:7676/admin/config \
   -H "Content-Type: application/json" \
   -d '{
     "failureRate": 0.5,
@@ -163,7 +163,7 @@ curl -X POST http://localhost:8080/admin/config \
 ### Get Full State
 
 ```bash
-curl http://localhost:8080/admin/state | jq .
+curl http://localhost:7676/admin/state | jq .
 ```
 
 Response includes simulation config and all transactions (MTN + Airtel).
@@ -171,7 +171,7 @@ Response includes simulation config and all transactions (MTN + Airtel).
 ### Update Simulation Config
 
 ```bash
-curl -X POST http://localhost:8080/admin/config \
+curl -X POST http://localhost:7676/admin/config \
   -H "Content-Type: application/json" \
   -d '{"failureRate": 0.25, "minDelayMs": 200, "maxDelayMs": 800}'
 ```
@@ -179,7 +179,7 @@ curl -X POST http://localhost:8080/admin/config \
 ### Clear All Transactions
 
 ```bash
-curl -X DELETE http://localhost:8080/admin/reset
+curl -X DELETE http://localhost:7676/admin/reset
 ```
 
 Note: API users are preserved; only transactions and tokens are cleared.
@@ -187,7 +187,7 @@ Note: API users are preserved; only transactions and tokens are cleared.
 ### Health Check
 
 ```bash
-curl http://localhost:8080/admin/ready
+curl http://localhost:7676/admin/ready
 ```
 
 
@@ -196,7 +196,7 @@ curl http://localhost:8080/admin/ready
 ### Airtel Payment with Webhook
 
 ```bash
-BASE=http://localhost:8080
+BASE=http://localhost:7676
 APP_WEBHOOK=http://localhost:3000/webhook
 
 # 1. Get token
@@ -220,7 +220,7 @@ curl -X POST $BASE/airtel/merchant/v2/payments/ \
 ### Change Failure Rate to 100%
 
 ```bash
-curl -X POST http://localhost:8080/admin/config \
+curl -X POST http://localhost:7676/admin/config \
   -H "Content-Type: application/json" \
   -d '{"failureRate": 1.0, "minDelayMs": 100, "maxDelayMs": 300}'
 ```
