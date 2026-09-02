@@ -23,7 +23,7 @@ jobs:
                   go-version: stable
 
             - name: Build and package binaries
-              uses: henryhale/gopack@v1
+              uses: henryhale/gopack@v1.1.0
               with:
                   name: "mockpay"
                   path: "."
