@@ -60,6 +60,9 @@ func TestRegisterUIServesConfigurationPage(t *testing.T) {
 	if !strings.Contains(page, "Transactions") || !strings.Contains(page, "Pending webhooks") {
 		t.Fatal("root response does not contain the in-memory activity views")
 	}
+	if !strings.Contains(page, `role="tablist"`) || !strings.Contains(page, `role="tabpanel"`) {
+		t.Fatal("root response does not contain the tabbed workspace")
+	}
 	if !strings.Contains(page, `id="theme"`) || !strings.Contains(page, `value="system" selected`) {
 		t.Fatal("root response does not contain the system-default theme switch")
 	}
