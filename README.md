@@ -1,67 +1,81 @@
-<div align=center>
+<div align="center">
 
 # MockPay
 
-**Mock Payment Gateway Server**
+**A local mock payment gateway for MTN MoMo and Airtel Africa Money.**
 
-[![Go](https://img.shields.io/badge/Go-1.26.2-blue.svg)](https://golang.org)
-[![Fiber](https://img.shields.io/badge/Framework-Fiber%20v3-00aed6.svg)](https://gofiber.io)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE.txt)
+[![Release](https://img.shields.io/github/v/release/momobasehq/mockpay)](https://github.com/momobasehq/mockpay/releases)
+[![Container](https://img.shields.io/badge/container-ghcr.io-2496ED?logo=docker&logoColor=white)](https://github.com/momobasehq/mockpay/pkgs/container/mockpay)
+[![Go](https://img.shields.io/badge/Go-1.26.2-00ADD8?logo=go&logoColor=white)](https://go.dev)
+[![Fiber](https://img.shields.io/badge/Fiber-v3-00ACD7)](https://gofiber.io)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE.txt)
 
-A local mock server for **MTN MoMo** and **Airtel Africa Money** APIs built with Go + Fiber.
-
-Perfect for testing payment integrations locally without hitting production APIs.
+Test payment integrations locally without calling production APIs.
 
 </div>
 
+> [!WARNING]
+> MockPay is for local development and testing only. Do not use it in production.
 
-## Overview
+## Features
 
-MockPay replicates MTN MoMo and Airtel Africa Money payment gateway behavior with realistic characteristics:
+- MTN MoMo collection and disbursement endpoints
+- Airtel Money payment, disbursement, and refund endpoints
+- Configurable processing delays and failure rates
+- Asynchronous transaction processing and webhook callbacks
+- Browser UI for configuration, transactions, and pending webhooks
+- Pre-seeded credentials and in-memory state for quick, repeatable tests
 
-- [x] **Async processing** – Configurable delays (300 ms – 3 s by default)
-- [x] **Failure injection** – 10% default failure rate (tuneable)
-- [x] **Webhook callbacks** – Delivers transaction completion events
-- [x] **Configuration UI** – Tune simulation behavior at `http://localhost:7676/`
-- [x] **Live activity** – Inspect in-memory transactions and pending webhooks
-- [x] **Admin API** – Runtime configuration without restarts
-- [x] **In-memory** – All data cleared on restart (perfect for testing)
-- [x] **Pre-seeded credentials** – Ready to test immediately
+## Quick start
 
->[!WARNING]
->
->**For local development only.** Do not use in production.
+### Docker
 
+Released versions are published to GitHub Container Registry. Image tags match Git release tags; `latest` is not published.
 
-## Prerequisites
+```bash
+docker run --rm --name mockpay -p 7676:7676 \
+  ghcr.io/momobasehq/mockpay:v1.0.0
+```
 
-- **Go 1.26+**
-- **make** (optional)
-- **curl** and **jq** (optional, for testing)
+Open the simulation console at [http://localhost:7676](http://localhost:7676), or verify the server:
 
+```bash
+curl http://localhost:7676/admin/ready/
+```
 
-## Installation
+To build the container locally instead:
 
 ```bash
 git clone https://github.com/momobasehq/mockpay.git
 cd mockpay
-
-make tidy    # Download dependencies
-make build   # Build binary
-make run     # Start on http://localhost:7676
+docker compose up --build
 ```
 
-## Quick Start
+### From source
 
-### Get a Token (MTN)
+Requires Go 1.26 or newer.
+
+```bash
+git clone https://github.com/momobasehq/mockpay.git
+cd mockpay
+make run
+```
+
+The server listens on port `7676`. Override it with the `PORT` environment variable.
+
+## Make your first payment
+
+The examples below use `curl`, `jq`, and `uuidgen`.
+
+Get an MTN collection token:
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:7676/mtn/collection/token/ \
-  -H "Authorization: Basic $(echo -n 'mock-api-user:mock-api-key' | base64)" \
+  -H "Authorization: Basic $(printf 'mock-api-user:mock-api-key' | base64)" \
   | jq -r .access_token)
 ```
 
-### Initiate Payment
+Create a request to pay:
 
 ```bash
 REF=$(uuidgen)
@@ -80,176 +94,111 @@ curl -X POST http://localhost:7676/mtn/collection/v1_0/requesttopay \
   }'
 ```
 
-### Check Status
+Check the result after the configured processing delay:
 
 ```bash
-sleep 2  # Wait for async processing
+sleep 3
 curl -s http://localhost:7676/mtn/collection/v1_0/requesttopay/$REF \
-  -H "Authorization: Bearer $TOKEN" | jq '.status, .financialTransactionId'
+  -H "Authorization: Bearer $TOKEN" | jq
 ```
 
+## Credentials
 
-## Pre-Seeded Credentials
+| Provider | Credential | Value |
+| --- | --- | --- |
+| MTN | API user | `mock-api-user` |
+| MTN | API key | `mock-api-key` |
+| MTN | Subscription key | `mock-oapi-subscription-key` |
+| Airtel | Client ID and secret | Any values are accepted |
 
-**MTN MoMo:**
-```
-UserID:                 mock-api-user
-APIKey:                 mock-api-key
-OcpApimSubscriptionKey: mock-oapi-subscription-key
-```
+Send the MTN subscription key in the `Ocp-Apim-Subscription-Key` header when the upstream integration requires it.
 
-**Airtel Africa Money:**
-```
-Any client_id and client_secret are accepted in sandbox mode
-```
+## Simulation
 
+The console at [http://localhost:7676](http://localhost:7676) provides tabs for configuration, transactions, and pending webhooks. No login is required.
 
-## Supported Endpoints
+| Setting | Default | Range |
+| --- | --- | --- |
+| Failure rate | 10% | 0–100% |
+| Minimum delay | 300 ms | 0–3000 ms |
+| Maximum delay | 3000 ms | 0–3000 ms |
 
-### 📌 MTN MoMo
+All settings and transactions are held in memory and reset when the server stops.
 
-Full endpoint reference: [**MTN MoMo API Documentation**](https://mtn-momo-api-documentation.readthedocs.io/en/latest/)
+### Admin API
 
-**Implemented endpoints:** `/mtn/*`
-- `POST /collection/token/` – Get collection token (Bearer auth)
-- `POST /collection/v1_0/requesttopay` – Initiate payment
-- `GET /collection/v1_0/requesttopay/:referenceId` – Query payment status
-- `GET /collection/v1_0/account/balance` – Account balance
-- `POST /disbursement/token/` – Get disbursement token
-- `POST /disbursement/v1_0/transfer` – Initiate transfer
-- `GET /disbursement/v1_0/transfer/:referenceId` – Query transfer status
-- `GET /disbursement/v1_0/account/balance` – Disbursement balance
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/admin/ready/` | Health check |
+| `GET` | `/admin/state/` | Configuration, transactions, and pending webhooks |
+| `POST` | `/admin/config/` | Update simulation settings |
+| `DELETE` | `/admin/reset/` | Clear transactions, tokens, and pending webhooks |
 
-### 📌 Airtel Africa Money
-
-Full endpoint reference: [**Airtel Africa Money API**](https://developers.airtel.africa/)
-
-**Implemented endpoints:** `/airtel/*`
-- `POST /auth/oauth2/token` – OAuth2 client credentials flow
-- `POST /merchant/v2/payments/` – Initiate payment
-- `GET /standard/v1/payments/:id` – Query payment status
-- `POST /standard/v1/disbursements/` – Initiate disbursement
-- `GET /standard/v1/disbursements/:id` – Query disbursement status
-- `POST /standard/v1/payments/refund` – Refund payment
-
-## Simulation Behavior
-
-Open [http://localhost:7676/](http://localhost:7676/) to configure the simulation. No login is required.
-
-### Configuration
-
-| Parameter | Default | Range |
-|-----------|---------|-------|
-| Failure Rate | 10% | 0–100% |
-| Min Delay | 300 ms | 0–3000 ms |
-| Max Delay | 3000 ms | 0–3000 ms |
-
-All new transactions use the configured failure rate and a random delay within the configured range. Per-request outcome overrides are intentionally not supported, matching real provider environments more closely.
-
-### Update through the API
+Update the simulation without using the browser:
 
 ```bash
-curl -X POST http://localhost:7676/admin/config \
+curl -X POST http://localhost:7676/admin/config/ \
   -H "Content-Type: application/json" \
-  -d '{
-    "failureRate": 0.5,
-    "minDelayMs": 100,
-    "maxDelayMs": 500
-  }'
+  -d '{"failureRate":0.25,"minDelayMs":200,"maxDelayMs":800}'
 ```
 
-## Admin API
+## Supported endpoints
 
-### Get Full State
+### MTN MoMo
 
-```bash
-curl http://localhost:7676/admin/state | jq .
-```
+See the [MTN MoMo API documentation](https://mtn-momo-api-documentation.readthedocs.io/en/latest/) for the upstream API.
 
-Response includes simulation config and all transactions (MTN + Airtel).
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/mtn/collection/token/` | Get a collection token |
+| `POST` | `/mtn/collection/v1_0/requesttopay` | Initiate a collection |
+| `GET` | `/mtn/collection/v1_0/requesttopay/:referenceId` | Get collection status |
+| `GET` | `/mtn/collection/v1_0/account/balance` | Get collection balance |
+| `POST` | `/mtn/disbursement/token/` | Get a disbursement token |
+| `POST` | `/mtn/disbursement/v1_0/transfer` | Initiate a disbursement |
+| `GET` | `/mtn/disbursement/v1_0/transfer/:referenceId` | Get disbursement status |
+| `GET` | `/mtn/disbursement/v1_0/account/balance` | Get disbursement balance |
 
-### Update Simulation Config
+### Airtel Africa Money
 
-```bash
-curl -X POST http://localhost:7676/admin/config \
-  -H "Content-Type: application/json" \
-  -d '{"failureRate": 0.25, "minDelayMs": 200, "maxDelayMs": 800}'
-```
+See the [Airtel Africa developer portal](https://developers.airtel.africa/) for the upstream API.
 
-### Clear All Transactions
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/airtel/auth/oauth2/token` | Get an access token |
+| `POST` | `/airtel/merchant/v2/payments/` | Initiate a payment |
+| `GET` | `/airtel/standard/v1/payments/:id` | Get payment status |
+| `POST` | `/airtel/standard/v1/disbursements/` | Initiate a disbursement |
+| `GET` | `/airtel/standard/v1/disbursements/:id` | Get disbursement status |
+| `POST` | `/airtel/standard/v1/payments/refund` | Refund a payment |
 
-```bash
-curl -X DELETE http://localhost:7676/admin/reset
-```
+## Webhooks
 
-Note: API users are preserved; only transactions and tokens are cleared.
+Send an `X-Callback-Url` header when creating a transaction. MockPay posts the final transaction payload to that URL after processing completes.
 
-### Health Check
+Webhook delivery is best-effort with a 10-second timeout and no retries. In-flight deliveries appear in the simulation console.
 
-```bash
-curl http://localhost:7676/admin/ready
-```
-
-
-## Examples
-
-### Airtel Payment with Webhook
-
-```bash
-BASE=http://localhost:7676
-APP_WEBHOOK=http://localhost:3000/webhook
-
-# 1. Get token
-TOKEN=$(curl -s -X POST $BASE/airtel/auth/oauth2/token \
-  -H "Content-Type: application/json" \
-  -d '{"client_id":"myapp","client_secret":"secret","grant_type":"client_credentials"}' \
-  | jq -r .access_token)
-
-# 2. Initiate payment with callback
-curl -X POST $BASE/airtel/merchant/v2/payments/ \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "X-Callback-Url: $APP_WEBHOOK" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "reference": "order-789",
-    "subscriber": {"country": "UG", "currency": "UGX", "msisdn": "256750000001"},
-    "transaction": {"amount": 7500, "country": "UG", "currency": "UGX", "id": "txn-001"}
-  }'
-```
-
-### Change Failure Rate to 100%
+## Development
 
 ```bash
-curl -X POST http://localhost:7676/admin/config \
-  -H "Content-Type: application/json" \
-  -d '{"failureRate": 1.0, "minDelayMs": 100, "maxDelayMs": 300}'
-```
-
-## Testing
-
-```bash
-# Terminal 1: Start server
-make run
-
-# Terminal 2: Run tests
-make smoke
+make build     # Build build/mockpay
+make run       # Run the server
+make smoke     # Exercise the running server
+go test ./...  # Run the Go tests
 ```
 
 ## Limitations
 
-- **In-memory only** – All data lost on restart (by design)
-- **No persistence** – Transactions not stored to disk
-- **Webhook delivery** – Best-effort, no retry logic
-- **Token expiry** – In-memory, not persistent across restarts
-- **Single instance** – No clustering support
-
+- State and tokens are not persisted across restarts.
+- Webhook delivery is not retried.
+- MockPay runs as a single instance with no shared state.
 
 ## Contributing
 
-Contributions welcome! Please submit pull requests or open issues on GitHub.
+Issues and pull requests are welcome.
 
 ## License
 
-Released under [MIT License](./LICENSE.txt).
+Released under the [MIT License](./LICENSE.txt).
 
 © 2026-present [Henry Hale](https://github.com/henryhale)
